@@ -1,0 +1,2026 @@
+<!DOCTYPE html>
+<html lang="fr" class="scroll-smooth">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <title>CoachRecomp - Suivi de Recomposition Corporelle & IA</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ['Inter', 'sans-serif'],
+                    },
+                }
+            }
+        }
+    </script>
+    <style>
+        body {
+            -webkit-tap-highlight-color: transparent;
+            font-family: 'Inter', sans-serif;
+        }
+        .custom-scrollbar::-webkit-scrollbar {
+            height: 6px;
+            width: 6px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-track {
+            background: #f1f5f9;
+        }
+        .custom-scrollbar::-webkit-scrollbar-thumb {
+            background: #cbd5e1;
+            border-radius: 10px;
+        }
+        .checked-line {
+            text-decoration: line-through;
+            color: #94a3b8;
+        }
+        .ios-safe-bottom {
+            padding-bottom: calc(1rem + env(safe-area-inset-bottom));
+        }
+        .chat-transition {
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+        @keyframes pulse-glow {
+            0%, 100% { transform: scale(1); box-shadow: 0 0 0 0 rgba(79, 70, 229, 0.4); }
+            50% { transform: scale(1.05); box-shadow: 0 0 15px 4px rgba(79, 70, 229, 0.2); }
+        }
+        .pulse-btn {
+            animation: pulse-glow 3s infinite;
+        }
+    </style>
+</head>
+<body class="bg-slate-50 text-slate-800 min-h-screen flex flex-col antialiased selection:bg-indigo-100 relative">
+
+    <header class="bg-white border-b border-slate-100 sticky top-0 z-30 shadow-sm backdrop-blur-md bg-white/95">
+        <div class="max-w-4xl mx-auto px-4 py-3 flex items-center justify-between">
+            <div class="flex items-center gap-3">
+                <div class="w-10 h-10 rounded-xl bg-gradient-to-tr from-indigo-600 to-violet-500 flex items-center justify-center text-white font-black shadow-md shadow-indigo-100">
+                    CR
+                </div>
+                <div>
+                    <h1 class="text-base font-bold text-slate-900 leading-none">CoachRecomp</h1>
+                    <span class="text-xs font-semibold text-indigo-600 tracking-wider uppercase">Calendrier Actif &amp; IA</span>
+                </div>
+            </div>
+            
+            <div class="flex items-center gap-2">
+                <div class="flex items-center gap-2 bg-indigo-50 px-3 py-1.5 rounded-full border border-indigo-100/50">
+                    <span class="text-xs font-bold text-indigo-700">Progression :</span>
+                    <span id="global-progress-percent" class="text-xs font-black text-indigo-800 bg-white px-2 py-0.5 rounded-md shadow-sm">0%</span>
+                </div>
+            </div>
+        </div>
+
+        <div class="border-t border-slate-100 bg-slate-50/50">
+            <div class="max-w-4xl mx-auto px-4 py-2 flex items-center justify-between gap-2">
+                <button onclick="navigateWeek(-1)" class="p-2 rounded-xl bg-white border border-slate-200 text-slate-700 hover:bg-slate-100 transition-all flex items-center justify-center shadow-sm">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"></path></svg>
+                </button>
+
+                <div class="flex-grow flex gap-1.5 overflow-x-auto custom-scrollbar snap-x snap-mandatory py-1" id="weekly-days-tabs-container">
+                    <!-- Généré dynamiquement en JS -->
+                </div>
+
+                <button onclick="navigateWeek(1)" class="p-2 rounded-xl bg-white border border-slate-200 text-slate-700 hover:bg-slate-100 transition-all flex items-center justify-center shadow-sm">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path></svg>
+                </button>
+
+                <div class="relative">
+                    <button class="p-2 rounded-xl bg-indigo-50 border border-indigo-100 text-indigo-600 hover:bg-indigo-100 transition-all flex items-center justify-center shadow-sm" title="Choisir une date">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path></svg>
+                    </button>
+                    <input type="date" id="calendar-hidden-input" class="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10" onchange="onCalendarDatePicked(this.value)">
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <main class="flex-grow max-w-4xl w-full mx-auto px-4 py-6">
+        <div class="bg-gradient-to-r from-slate-900 to-indigo-950 text-white rounded-3xl p-6 shadow-xl mb-6 relative overflow-hidden">
+            <div class="absolute -right-10 -bottom-10 w-40 h-40 bg-indigo-500/10 rounded-full blur-2xl"></div>
+            <div class="relative z-10 flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+                <div class="flex-1">
+                    <span class="text-indigo-400 text-xs font-extrabold uppercase tracking-widest" id="dashboard-subtitle">Mon Agenda</span>
+                    <h2 class="text-2xl font-black mt-1" id="current-day-title">Chargement...</h2>
+                    
+                    <p class="text-slate-300 text-xs mt-2 max-w-lg" id="day-overview">
+                        Analyse métabolique en cours...
+                    </p>
+
+                    <div class="mt-4">
+                        <div class="flex justify-between items-center text-xs text-slate-400 font-semibold mb-2">
+                            <span>Objectifs complétés</span>
+                            <span id="progress-ratio">0/0</span>
+                        </div>
+                        <div class="w-full h-3 bg-slate-800 rounded-full overflow-hidden">
+                            <div id="progress-bar" class="h-full bg-gradient-to-r from-emerald-400 to-teal-500 rounded-full transition-all duration-500 ease-out" style="width: 0%"></div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="flex flex-col gap-2 flex-none">
+                    <button onclick="generateDailyAIReview()" class="w-full md:w-auto px-5 py-3 rounded-2xl bg-gradient-to-r from-indigo-500 to-violet-600 hover:from-indigo-600 hover:to-violet-700 text-white text-xs font-bold shadow-lg shadow-indigo-950/40 flex items-center justify-center gap-2 transition-all hover:scale-[1.02] active:scale-[0.98]">
+                        <span>✨</span> Bilan de ma journée (IA)
+                    </button>
+                    <button onclick="resetTodayProgress()" class="w-full md:w-auto px-4 py-2 rounded-xl bg-slate-800/80 hover:bg-slate-700/80 text-slate-400 hover:text-white text-[11px] font-bold transition-all flex items-center justify-center gap-1.5 border border-slate-700/50">
+                        Réinitialiser ce jour
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <div class="bg-white border border-slate-200/80 rounded-3xl p-5 shadow-sm mb-6">
+            <div class="flex items-center justify-between mb-4 border-b border-slate-100 pb-3">
+                <h3 class="text-sm font-black text-slate-900 flex items-center gap-2">
+                    <span class="p-1 rounded-lg bg-indigo-50 text-indigo-600 text-xs">📊</span>
+                    Analyse de Progression Hebdomadaire
+                </h3>
+                <span class="text-[10px] font-bold text-slate-400 tracking-wider uppercase">Temps réel</span>
+            </div>
+            
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+                <div class="md:col-span-1 space-y-3.5">
+                    <h4 class="text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">Par Catégorie</h4>
+                    
+                    <div class="space-y-1">
+                        <div class="flex justify-between text-xs font-semibold text-slate-600">
+                            <span class="flex items-center gap-1">🍽️ Nutrition</span>
+                            <span id="stats-nutrition-percent">0%</span>
+                        </div>
+                        <div class="w-full h-2 bg-slate-100 rounded-full overflow-hidden">
+                            <div id="stats-nutrition-bar" class="h-full bg-orange-400 rounded-full transition-all duration-500" style="width: 0%"></div>
+                        </div>
+                    </div>
+
+                    <div class="space-y-1">
+                        <div class="flex justify-between text-xs font-semibold text-slate-600">
+                            <span class="flex items-center gap-1">💪 Sport &amp; Force</span>
+                            <span id="stats-sport-percent">0%</span>
+                        </div>
+                        <div class="w-full h-2 bg-slate-100 rounded-full overflow-hidden">
+                            <div id="stats-sport-bar" class="h-full bg-indigo-500 rounded-full transition-all duration-500" style="width: 0%"></div>
+                        </div>
+                    </div>
+
+                    <div class="space-y-1">
+                        <div class="flex justify-between text-xs font-semibold text-slate-600">
+                            <span class="flex items-center gap-1">🌱 Récupération</span>
+                            <span id="stats-holistic-percent">0%</span>
+                        </div>
+                        <div class="w-full h-2 bg-slate-100 rounded-full overflow-hidden">
+                            <div id="stats-holistic-bar" class="h-full bg-emerald-500 rounded-full transition-all duration-500" style="width: 0%"></div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="md:col-span-2">
+                    <h4 class="text-xs font-bold text-slate-400 uppercase tracking-wider mb-3">Activité de la semaine</h4>
+                    <div class="flex justify-between items-end h-24 gap-2 pt-2 border-b border-slate-100" id="stats-weekly-bar-chart">
+                        <!-- Barres générées dynamiquement -->
+                    </div>
+                    <div class="flex justify-between text-[9px] font-bold text-slate-400 mt-1.5 uppercase px-1">
+                        <span>Lun</span><span>Mar</span><span>Mer</span><span>Jeu</span><span>Ven</span><span>Sam</span><span>Dim</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+            
+            <div class="space-y-4">
+                <div class="flex items-center justify-between">
+                    <h3 class="text-lg font-black text-slate-900 flex items-center gap-2">
+                        <span class="p-1.5 rounded-lg bg-orange-100 text-orange-600 text-sm">🍽️</span>
+                        Nutrition &amp; Repas
+                    </h3>
+                    <span id="meals-count" class="text-xs font-bold text-slate-400 bg-slate-200/50 px-2.5 py-0.5 rounded-full">0 restants</span>
+                </div>
+                
+                <div class="space-y-3" id="meals-container">
+                    <!-- Généré dynamiquement -->
+                </div>
+            </div>
+
+            <div class="space-y-4">
+                <div class="flex items-center justify-between">
+                    <h3 class="text-lg font-black text-slate-900 flex items-center gap-2">
+                        <span class="p-1.5 rounded-lg bg-indigo-100 text-indigo-600 text-sm">💪</span>
+                        Sport &amp; Force
+                    </h3>
+                    <span id="sport-count" class="text-xs font-bold text-slate-400 bg-slate-200/50 px-2.5 py-0.5 rounded-full">0 restants</span>
+                </div>
+                
+                <div class="space-y-3" id="sports-container">
+                    <!-- Généré dynamiquement -->
+                </div>
+            </div>
+
+            <div class="space-y-4 md:col-span-2 mt-2">
+                <div class="flex items-center justify-between">
+                    <h3 class="text-lg font-black text-slate-900 flex items-center gap-2">
+                        <span class="p-1.5 rounded-lg bg-emerald-100 text-emerald-600 text-sm">🌱</span>
+                        Rituels Holistiques &amp; Récupération
+                    </h3>
+                    <span id="holistic-count" class="text-xs font-bold text-slate-400 bg-slate-200/50 px-2.5 py-0.5 rounded-full">0 restants</span>
+                </div>
+                
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-3" id="holistic-container">
+                    <!-- Généré dynamiquement -->
+                </div>
+            </div>
+
+        </div>
+    </main>
+
+    <div id="detail-modal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 opacity-0 pointer-events-none transition-opacity duration-300">
+        <div class="bg-white w-full sm:max-w-lg rounded-t-3xl sm:rounded-2xl shadow-2xl overflow-hidden transform translate-y-full sm:translate-y-4 transition-transform duration-300 flex flex-col max-h-[85vh] sm:max-h-[90vh]">
+            
+            <div class="p-5 border-b border-slate-100 flex items-center justify-between bg-slate-50/50">
+                <div class="flex items-center gap-3">
+                    <span id="modal-category-badge" class="text-xs font-extrabold uppercase px-2.5 py-1 rounded-full">CATÉGORIE</span>
+                    <h4 class="text-sm font-bold text-slate-400" id="modal-subtitle">Détails</h4>
+                </div>
+                <button onclick="closeModal()" class="w-8 h-8 rounded-full bg-slate-200/60 flex items-center justify-center text-slate-600 font-bold hover:bg-slate-200 transition-colors">
+                    ✕
+                </button>
+            </div>
+
+            <div class="p-6 overflow-y-auto space-y-5 flex-grow" id="modal-body-content">
+                <!-- Contenu dynamique -->
+            </div>
+
+            <div class="p-4 bg-slate-50 border-t border-slate-100 flex flex-col sm:flex-row gap-3 ios-safe-bottom">
+                <div class="flex gap-2 w-full">
+                    <button onclick="closeModal()" class="flex-1 py-3 text-slate-600 bg-white border border-slate-200 font-bold rounded-xl text-sm hover:bg-slate-100 transition-colors">
+                        Fermer
+                    </button>
+                    <button id="modal-action-btn" class="flex-1 py-3 text-white bg-indigo-600 font-bold rounded-xl text-sm hover:bg-indigo-700 shadow-md shadow-indigo-100 transition-colors">
+                        Marquer comme fait
+                    </button>
+                </div>
+                <button id="modal-ia-alternative-btn" class="w-full py-2.5 px-4 bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 text-white text-xs font-bold rounded-xl flex items-center justify-center gap-2 shadow-sm transition-all hidden">
+                    <span>✨</span> Obtenir une variante saine par l'IA
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <div id="ai-chat-widget" class="fixed bottom-5 right-5 z-40 flex flex-col items-end">
+        <button id="ai-chat-trigger" onclick="toggleAIChat()" class="pulse-btn w-14 h-14 rounded-full bg-gradient-to-tr from-indigo-600 to-violet-500 text-white shadow-xl flex items-center justify-center hover:scale-105 active:scale-95 transition-all">
+            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z"></path></svg>
+        </button>
+
+        <div id="ai-chat-window" class="chat-transition translate-y-10 opacity-0 pointer-events-none absolute bottom-16 right-0 w-[92vw] sm:w-[400px] h-[70vh] max-h-[550px] bg-white rounded-3xl shadow-2xl border border-slate-100 flex flex-col overflow-hidden">
+            <div class="bg-gradient-to-r from-indigo-900 to-slate-900 text-white p-4 flex items-center justify-between">
+                <div class="flex items-center gap-3">
+                    <div class="w-8 h-8 rounded-lg bg-indigo-500/20 flex items-center justify-center text-indigo-300">
+                        ✨
+                    </div>
+                    <div>
+                        <h4 class="text-sm font-black">CoachRecomp IA</h4>
+                        <span class="text-[10px] text-emerald-400 font-bold flex items-center gap-1">● Assistant Réactif Actif</span>
+                    </div>
+                </div>
+                <button onclick="toggleAIChat()" class="text-slate-400 hover:text-white transition-colors text-sm font-bold">✕</button>
+            </div>
+
+            <div id="chat-messages" class="flex-1 p-4 overflow-y-auto space-y-3 bg-slate-50 text-xs">
+                <div class="bg-indigo-50 border border-indigo-100 text-indigo-950 p-3.5 rounded-2xl max-w-[85%]">
+                    <p class="font-bold mb-1">Salut ! Je suis CoachRecomp ✨</p>
+                    <p class="leading-relaxed">Je suis ton expert personnel de 42 ans. Pose-moi tes questions sur ta nutrition, ton entraînement avec tes haltères de 20kg ou comment soulager ton dos ce soir !</p>
+                </div>
+            </div>
+
+            <div class="p-2 border-t border-slate-100 bg-white flex gap-1.5 overflow-x-auto custom-scrollbar whitespace-nowrap">
+                <button onclick="setQuickPrompt('Une collation saine de 16h rapide ?')" class="px-2.5 py-1.5 bg-slate-100 hover:bg-indigo-50 hover:text-indigo-600 rounded-lg text-[10px] font-bold text-slate-600 transition-colors">🍎 Collation Express</button>
+                <button onclick="setQuickPrompt('Comment ajuster mon haltère pour les pecs ?')" class="px-2.5 py-1.5 bg-slate-100 hover:bg-indigo-50 hover:text-indigo-600 rounded-lg text-[10px] font-bold text-slate-600 transition-colors">🏋️‍♂️ Utilisation Haltères</button>
+                <button onclick="setQuickPrompt('Que faire si mon bas du dos est raide aujourd\'hui ?')" class="px-2.5 py-1.5 bg-slate-100 hover:bg-indigo-50 hover:text-indigo-600 rounded-lg text-[10px] font-bold text-slate-600 transition-colors">🤸‍♂️ Soulager mon Dos</button>
+            </div>
+
+            <div class="p-3 border-t border-slate-100 bg-white flex gap-2">
+                <input id="chat-input" type="text" placeholder="Posez une question à votre coach..." class="flex-1 bg-slate-50 text-xs px-4 py-3 rounded-xl border border-slate-200 outline-none focus:border-indigo-500 transition-colors" onkeydown="if(event.key === 'Enter') sendChatMessage()">
+                <button onclick="sendChatMessage()" class="p-3 bg-indigo-600 text-white rounded-xl hover:bg-indigo-700 transition-colors flex items-center justify-center">
+                    <svg class="w-4 h-4 transform rotate-90" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 19l9-2 2-12-20 8 9 4 9-2zm0 0l-1 5-4-5"></path></svg>
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <div id="toast-notification" class="fixed top-20 right-5 z-50 bg-slate-900 text-white text-xs px-4 py-3.5 rounded-2xl shadow-xl border border-slate-800 transition-all duration-300 transform translate-x-72 opacity-0 flex items-center gap-2">
+        <span id="toast-icon">✨</span>
+        <span id="toast-message">Notification</span>
+    </div>
+
+    <script>
+        const programDatabase = [
+            // 0: LUNDI
+            {
+                dayName: "Lundi",
+                overview: "Optimisons l'insuline dès le matin et lançons un éveil musculaire rapide pour activer vos bras, abdominaux et pectoraux.",
+                meals: [
+                    {
+                        id: "lundi-m1",
+                        title: "Petit-Déjeuner Récupération",
+                        desc: "Pain de seigle ou complet, St Moret, Zaatar, Shaker de Whey Isolate.",
+                        icon: "🍞",
+                        ingredients: [
+                            "2 tranches de pain de seigle ou complet (60g environ)",
+                            "20g de St Moret (fromage à tartiner léger)",
+                            "1 cuillère à café généreuse de Zaatar",
+                            "30g de Whey Isolate (1 scoop) diluée dans 250ml d'eau fraiche"
+                        ],
+                        preparation: "Faites griller le pain. Étalez le St Moret finement et saupoudrez le Zaatar. Mélangez la Whey dans votre shaker et consommez le tout ensemble pour stabiliser l'index glycémique dès le réveil.",
+                        why: "Le pain de seigle à IG bas empêche le stockage de gras au ventre. La Whey apporte la dose exacte de protéines pour relancer la reconstruction musculaire."
+                    },
+                    {
+                        id: "lundi-m2",
+                        title: "Déjeuner Cantine (Équilibré)",
+                        desc: "Poisson ou dinde, légumes verts à volonté et portion modérée de féculents.",
+                        icon: "🐟",
+                        ingredients: [
+                            "150g à 200g de protéine blanche (poulet, cabillaud, dinde)",
+                            "Une demi-assiette de légumes verts (brocolis, haricots, épinards)",
+                            "Un quart d'assiette de féculents de qualité (riz complet, lentilles ou quinoa - environ 120g cuits)"
+                        ],
+                        preparation: "Composez votre assiette directement au self ou au bar à salades. Évitez les sauces blanches industrielles et le pain blanc d'accompagnement.",
+                        why: "Permet de soutenir la masse musculaire tout en évitant les pics de fatigue d'après-midi provoqués par les sucres rapides."
+                    },
+                    {
+                        id: "lundi-m3",
+                        title: "Collation de l'après-midi (16h)",
+                        desc: "Amandes douces et une pomme pour calmer la faim.",
+                        icon: "🍎",
+                        ingredients: [
+                            "1 poignée d'amandes douces entières (environ 30g)",
+                            "1 pomme bio de taille moyenne"
+                        ],
+                        preparation: "Rapide et sans préparation. Emportez-les simplement dans votre sac de travail.",
+                        why: "Les amandes fournissent de bons lipides et du magnésium qui régulent le stress (cortisol), évitant le stockage sur les poignées d'amour."
+                    }
+                ],
+                sport: [
+                    {
+                        id: "lundi-s1",
+                        title: "Pompes au sol (Flash 10')",
+                        desc: "Activez vos pectoraux et vos triceps.",
+                        icon: "🔥",
+                        target: "Pec, Épaules, Triceps",
+                        volume: "3 séries à votre maximum de répétitions",
+                        rest: "60 secondes",
+                        how: "Placez les mains au sol un peu plus larges que les épaules. Gardez le corps parfaitement aligné (fessiers et abdos serrés). Descendez le buste jusqu'au sol en contrôlant la descente sur 3 secondes, puis repoussez de façon dynamique.",
+                        optimization: "Gardez les coudes rentrés vers l'arrière à un angle de 45° par rapport à votre buste pour protéger vos épaules.",
+                        avoid: "Ne laissez pas le bas de votre dos se creuser. Restez gainé comme une planche."
+                    },
+                    {
+                        id: "lundi-s2",
+                        title: "Gainage Planche Face",
+                        desc: "Renforcez le transverse, muscle profond du ventre plat.",
+                        icon: "🧱",
+                        target: "Abdominaux (Transverse)",
+                        volume: "3 séries de 45 secondes",
+                        rest: "45 secondes",
+                        how: "En appui sur les coudes et la pointe des pieds. Aspirez activement votre nombril vers votre colonne et contractez vos abdominaux à 100%.",
+                        optimization: "Poussez vos talons vers l'arrière et vos coudes vers l'avant (isométrie active) pour augmenter le travail abdominal.",
+                        avoid: "Ne montez pas vos fessiers trop haut et ne laissez jamais vos lombaires s'affaisser."
+                    }
+                ],
+                holistic: [
+                    {
+                        id: "lundi-h1",
+                        title: "Cohérence Cardiaque Pré-repas",
+                        desc: "3 à 5 minutes de respiration ciblée avant le déjeuner de midi pour réguler le cortisol.",
+                        icon: "🧘‍♂️",
+                        how: "Asseyez-vous droit à votre bureau. Inspirez par le nez pendant 5 secondes en gonflant le ventre, puis expirez doucement par la bouche pendant 5 secondes en le rentrant.",
+                        why: "Fait chuter le cortisol (l'hormone du stress de bureau), limitant directement le stockage graisseux sur la sangle abdominale."
+                    },
+                    {
+                        id: "lundi-h2",
+                        title: "Étirement du Psoas (Lombaires)",
+                        desc: "Libérez les tensions lombaires accumulées en position assise.",
+                        icon: "🤸‍♂️",
+                        how: "En fente basse, un genou au sol sur un coussin, avancez doucement le bassin vers l'avant jusqu'à ressentir un étirement léger en haut de la cuisse arrière. Tenez 45 secondes par jambe.",
+                        why: "La raideur du psoas liée aux longues heures assis tire sur le bas du dos et provoque des douleurs lombaires."
+                    }
+                ]
+            },
+            // 1: MARDI
+            {
+                dayName: "Mardi",
+                overview: "Aujourd'hui est un jour de récupération active. Focalisez-vous sur une excellente alimentation et optimisez votre dépense énergétique naturelle.",
+                meals: [
+                    {
+                        id: "mardi-m1",
+                        title: "Petit-Déjeuner Récupération",
+                        desc: "Pain de seigle ou complet, St Moret, Zaatar, Shaker de Whey Isolate.",
+                        icon: "🍞",
+                        ingredients: ["2 tranches de pain complet, 20g de St Moret, Zaatar, 30g de Whey Isolate"],
+                        preparation: "Faites griller le pain. Tartinez le St Moret, saupoudrez le Zaatar et consommez avec la Whey Isolate.",
+                        why: "La régularité du petit-déjeuner protéiné est la clé de voûte pour éviter les envies de sucre à 10h."
+                    },
+                    {
+                        id: "mardi-m2",
+                        title: "Déjeuner : Option Bar à Sushi ou Salades",
+                        desc: "Faites le plein d'omégas-3 essentiels pour votre système hormonal.",
+                        icon: "🍣",
+                        ingredients: [
+                            "10 à 12 Sashimis de saumon ou thon",
+                            "Une salade d'algues chuka wakame",
+                            "Un petit bol de riz vinaigré ou soupe miso"
+                        ],
+                        preparation: "À commander ou à emporter si vous mangez à l'extérieur.",
+                        why: "Les sashimis apportent d'excellentes protéines pures et des acides gras sains sans les glucides lourds des sushis classiques."
+                    },
+                    {
+                        id: "mardi-m3",
+                        title: "Collation de l'après-midi (16h)",
+                        desc: "Amandes douces et une pomme pour calmer la faim.",
+                        icon: "🍎",
+                        ingredients: ["30g d'amandes entières + 1 pomme."],
+                        preparation: "Consommez à votre bureau.",
+                        why: "Garantit un niveau de sucre stable jusqu'au dîner de famille."
+                    }
+                ],
+                sport: [
+                    {
+                        id: "mardi-s1",
+                        title: "Récupération Active & Sédentarité",
+                        desc: "Évitez la sédentarité en mouvement passif.",
+                        icon: "🚶‍♂️",
+                        target: "Système cardiovasculaire & métabolisme",
+                        volume: "Prendre toutes les marches d'escalier de la journée",
+                        rest: "Continu",
+                        how: "Bannissez les ascenseurs durant vos réunions de travail. Marchez au moins 20 minutes activement pendant la journée (ex: après le déjeuner).",
+                        optimization: "Garez votre voiture un peu plus loin ou marchez d'un pas dynamique entre deux rendez-vous.",
+                        avoid: "Évitez de rester assis plus de 2 heures d'affilée sans vous lever pour vous étirer 1 minute."
+                    }
+                ],
+                holistic: [
+                    {
+                        id: "mardi-h1",
+                        title: "Visualisation & Clarté Mentale",
+                        desc: "Prendre du recul face aux pics d'urgences de la journée.",
+                        icon: "🧘‍♂️",
+                        how: "Installez-vous confortablement, fermez les yeux pendant 3 minutes et respirez calmement en relâchant vos épaules.",
+                        why: "Régule la tension nerveuse qui contracte les muscles du cou et des trapèzes."
+                    }
+                ]
+            },
+            // 2: MERCREDI
+            {
+                dayName: "Mercredi",
+                overview: "Renforçons la posture de votre dos avec les élastiques et activons le brûlage des graisses abdominales avec les Mountain Climbers.",
+                meals: [
+                    {
+                        id: "mercredi-m1",
+                        title: "Petit-Déjeuner Récupération",
+                        desc: "Pain de seigle ou complet, St Moret, Zaatar, Shaker de Whey Isolate.",
+                        icon: "🍞",
+                        ingredients: ["2 tranches de pain complet, 20g de St Moret, Zaatar, 30g de Whey Isolate"],
+                        preparation: "Se référer aux instructions du lundi.",
+                        why: "Maintient l'apport en acides aminés nécessaires pour consolider les muscles de votre dos et vos épaules."
+                    },
+                    {
+                        id: "mercredi-m2",
+                        title: "Déjeuner : Cantine Volaille & Légumes",
+                        desc: "Un repas simple et efficace.",
+                        icon: "🍗",
+                        ingredients: [
+                            "180g de blanc de poulet ou dinde d'origine",
+                            "Une grande portion de haricots verts cuits à la vapeur",
+                            "100g de quinoa ou riz complet"
+                        ],
+                        preparation: "Faites le choix de la simplicité à la cantine en demandant vos légumes sans sauces superflues.",
+                        why: "Le poulet est pauvre en graisses saturées, ce qui est idéal pour conserver un déficit calorique sain."
+                    },
+                    {
+                        id: "mercredi-m3",
+                        title: "Collation de l'après-midi (16h)",
+                        desc: "Amandes douces et une pomme pour calmer la faim.",
+                        icon: "🍎",
+                        ingredients: ["30g d'amandes entières + 1 pomme."],
+                        preparation: "À consommer au travail.",
+                        why: "Soutient votre énergie avant la petite séance sportive de fin de journée."
+                    }
+                ],
+                sport: [
+                    {
+                        id: "mercredi-s1",
+                        title: "Tirage Élastique (Dos/Posture)",
+                        desc: "Idéal pour redresser vos épaules de bureaucrate.",
+                        icon: "🏹",
+                        target: "Dos & Posture",
+                        volume: "3 séries de 15 répétitions",
+                        rest: "60 secondes",
+                        how: "Coincez l'élastique fermé dans une poignée de porte. Reculez pour avoir de la tension. Fléchissez légèrement les genoux, gardez le dos plat et tirez les coudes vers l'arrière en serrant fermement vos omoplates.",
+                        optimization: "Maintenez la contraction 2 secondes en position arrière avant de relâcher lentement.",
+                        avoid: "Ne haussez pas les épaules pendant le tirage, gardez-les basses et éloignées de vos oreilles."
+                    },
+                    {
+                        id: "mercredi-s2",
+                        title: "Mountain Climbers (Flash)",
+                        desc: "Cardio abdominal ultra-efficace pour griller les graisses.",
+                        icon: "🏃‍♂️",
+                        target: "Abdominaux profonds & Dépense énergétique",
+                        volume: "3 séries de 45 secondes",
+                        rest: "45 secondes",
+                        how: "En position de pompe, ramenez rapidement et alternativement vos genoux vers votre poitrine sans laisser vos fessiers monter en l'air.",
+                        optimization: "Rentrez le ventre et expirez à chaque fois qu'un genou se rapproche de la poitrine.",
+                        avoid: "Ne laissez pas vos hanches s'affaisser vers le sol, restez aligné."
+                    }
+                ],
+                holistic: [
+                    {
+                        id: "mercredi-h1",
+                        title: "Libération du stress par la Respiration",
+                        desc: "Pause respiration de 5 minutes à mi-journée.",
+                        icon: "🌱",
+                        how: "Fermez les yeux au bureau, inspirez lentement par le nez en 5 secondes, bloquez 2 secondes, puis soufflez lentement pendant 5 secondes.",
+                        why: "L'oxygénation profonde régule la tension nerveuse accumulée et aide à rester concentré."
+                    }
+                ]
+            },
+            // 3: JEUDI
+            {
+                dayName: "Jeudi",
+                overview: "Jour de repos musculaire complet avant votre grosse séance coachée de demain. Hydratez-vous bien et préparez vos muscles.",
+                meals: [
+                    {
+                        id: "jeudi-m1",
+                        title: "Petit-Déjeuner Récupération",
+                        desc: "Pain de seigle ou complet, St Moret, Zaatar, Shaker de Whey Isolate.",
+                        icon: "🍞",
+                        ingredients: ["2 tranches de pain complet, 20g de St Moret, Zaatar, 30g de Whey Isolate"],
+                        preparation: "Se référer aux instructions du lundi.",
+                        why: "Soutient les fibres musculaires en cours de régénération."
+                    },
+                    {
+                        id: "jeudi-m2",
+                        title: "Déjeuner : Cantine Steak haché maigre & Légumes",
+                        desc: "Un apport en fer et protéines pour votre récupération.",
+                        icon: "🥩",
+                        ingredients: [
+                            "150g de steak haché 5% de matières grasses",
+                            "Une belle poêlée de haricots verts ou courgettes",
+                            "150g de pâtes complètes ou riz"
+                        ],
+                        preparation: "Demandez une cuisson simple et évitez les frites.",
+                        why: "La viande rouge maigre apporte du fer héminique et du zinc, essentiels au métabolisme hormonal masculin."
+                    },
+                    {
+                        id: "jeudi-m3",
+                        title: "Collation de l'après-midi (16h)",
+                        desc: "Amandes douces et une pomme pour calmer la faim.",
+                        icon: "🍎",
+                        ingredients: ["30g d'amandes entières + 1 pomme."],
+                        preparation: "Consommez à votre bureau.",
+                        why: "L'en-cas malin pour tenir la fin d'après-midi sans somnolence."
+                    }
+                ],
+                sport: [
+                    {
+                        id: "jeudi-s1",
+                        title: "Repos Complet & Mobilité",
+                        desc: "Laissez vos articulations récupérer des efforts de la semaine.",
+                        icon: "🧘‍♂️",
+                        target: "Régénération musculaire",
+                        volume: "Prendre les escaliers et s'étirer doucement",
+                        rest: "Continu",
+                        how: "Profitez-en pour marcher un peu plus et boire au moins 2 litres d'eau plate aujourd'hui.",
+                        optimization: "Faites des rotations d'épaules et des cercles de bassin pour détendre les zones de tension de bureau.",
+                        avoid: "Ne forcez pas sur vos muscles aujourd'hui, laissez la reconstruction faire son œuvre."
+                    }
+                ],
+                holistic: [
+                    {
+                        id: "jeudi-h1",
+                        title: "Hydratation Optimale",
+                        desc: "Assurez-vous de consommer suffisamment d'eau pour rincer l'acide lactique et drainer les tissus.",
+                        icon: "💧",
+                        how: "Gardez une bouteille d'eau de 1.5L sur votre bureau et buvez de petites gorgées régulières tout au long de la journée.",
+                        why: "Un muscle déshydraté est un muscle qui récupère moins vite et qui est sujet aux crampes et courbatures."
+                    }
+                ]
+            },
+            // 4: VENDREDI
+            {
+                dayName: "Vendredi",
+                overview: "C'est le jour de votre séance d'une heure avec votre coach personnel. Donnez le maximum sur la force musculaire.",
+                meals: [
+                    {
+                        id: "vendredi-m1",
+                        title: "Petit-Déjeuner Récupération",
+                        desc: "Pain de seigle ou complet, St Moret, Zaatar, Shaker de Whey Isolate.",
+                        icon: "🍞",
+                        ingredients: ["2 tranches de pain complet, 20g de St Moret, Zaatar, 30g de Whey Isolate"],
+                        preparation: "Se référer aux instructions du lundi.",
+                        why: "Prépare votre corps aux efforts intenses prévus avec votre coach."
+                    },
+                    {
+                        id: "vendredi-m2",
+                        title: "Déjeuner : Cantine Poisson Blanc",
+                        desc: "Protéines légères et digestes avant votre séance sportive.",
+                        icon: "🐟",
+                        ingredients: [
+                            "180g de dos de cabillaud ou colin",
+                            "Une belle portion d'épinards ou de brocolis vapeur",
+                            "120g de riz basmati pour l'énergie musculaire"
+                        ],
+                        preparation: "Demandez le poisson grillé sans sauce grasse.",
+                        why: "Le cabillaud est extrêmement riche en protéines hautement digestes, évitant de surcharger votre estomac avant le sport."
+                    },
+                    {
+                        id: "vendredi-m3",
+                        title: "Collation Pré-Séance (1h avant)",
+                        desc: "Shaker de Whey et une pomme pour de l'énergie rapide.",
+                        icon: "🥤",
+                        ingredients: [
+                            "30g de Whey Isolate mélangés à de l'eau",
+                            "1 pomme"
+                        ],
+                        preparation: "Mélangez et buvez à votre bureau une heure avant votre séance.",
+                        why: "Sature votre sang en acides aminés pour stopper le catabolisme pendant l'effort de force."
+                    }
+                ],
+                sport: [
+                    {
+                        id: "vendredi-s1",
+                        title: "Séance Coachée (Force Pure - 1h)",
+                        desc: "Votre séance pilier de la semaine.",
+                        icon: "👑",
+                        target: "Full Body / Force",
+                        volume: "Exercices de base avec vos haltères de 20kg",
+                        rest: "Suivre les consignes du coach",
+                        how: "Concentrez-vous sur des mouvements polyarticulaires : Squats gobelet, Soulevé de terre jambes tendues, Développés. Demandez à votre coach de bien surveiller la rectitude de votre dos.",
+                        optimization: "Mettez de l'intensité sur chaque série, c'est cette séance qui va principalement déclencher la pousse de vos bras et de votre torse.",
+                        avoid: "N'essayez pas de tricher sur l'amplitude des mouvements pour soulever plus lourd. Privilégiez un mouvement propre."
+                    }
+                ],
+                holistic: [
+                    {
+                        id: "vendredi-h1",
+                        title: "Sommeil Sacré de Fin de Semaine",
+                        desc: "La clé de voûte de votre reconstruction musculaire nocturne.",
+                        icon: "🌙",
+                        how: "Posez vos écrans au moins 30 minutes avant l'extinction des feux. Lisez ou écoutez de la musique douce dans votre lit.",
+                        why: "La libération massive d'hormones de croissance musculaire a lieu pendant vos premières heures de sommeil profond."
+                    }
+                ]
+            },
+            // 5: SAMEDI
+            {
+                dayName: "Samedi",
+                overview: "Séance solo volume à la maison avec vos haltères modulables. Ciblez le haut de votre corps (pecs, épaules et bras).",
+                meals: [
+                    {
+                        id: "samedi-m1",
+                        title: "Petit-Déjeuner Récupération",
+                        desc: "Pain de seigle ou complet, St Moret, Zaatar, Shaker de Whey Isolate.",
+                        icon: "🍞",
+                        ingredients: ["2 tranches de pain complet, 20g de St Moret, Zaatar, 30g de Whey Isolate"],
+                        preparation: "Se référer aux instructions du lundi.",
+                        why: "Alimente vos muscles dès le réveil avant votre séance de volume du matin."
+                    },
+                    {
+                        id: "samedi-m2",
+                        title: "Déjeuner : Omelette de Récupération",
+                        desc: "Rapide et nourrissant après vos exercices.",
+                        icon: "🍳",
+                        ingredients: [
+                            "3 œufs entiers",
+                            "1 tranche de pain de seigle",
+                            "Une belle salade de tomates"
+                        ],
+                        preparation: "Faites cuire vos œufs au plat ou brouillés. Accompagnez de la salade.",
+                        why: "Un apport parfait de nutriments après l'effort pour optimiser la reconstruction des pecs et des bras."
+                    },
+                    {
+                        id: "samedi-m3",
+                        title: "Collation Post-Musculation",
+                        desc: "Shaker de Whey et quelques amandes.",
+                        icon: "🥤",
+                        ingredients: [
+                            "30g de Whey Isolate mélangés à 250ml d'eau",
+                            "15g d'amandes"
+                        ],
+                        preparation: "Secouez et buvez immédiatement après votre séance solo.",
+                        why: "Permet de maximiser la fenêtre anabolique pour la construction musculaire."
+                    }
+                ],
+                sport: [
+                    {
+                        id: "samedi-s1",
+                        title: "Floor Press au Sol (Pecs)",
+                        desc: "Construisez l'épaisseur de votre torse en protégeant vos épaules.",
+                        icon: "🏋️‍♂️",
+                        target: "Pectoraux & Triceps",
+                        volume: "4 séries de 12 répétitions",
+                        rest: "75 secondes",
+                        how: "Allongé sur le dos, vos coudes à 45° touchent le sol. Poussez vos haltères (commencez à 10-12kg par bras) vers le plafond en contractant fortement vos pectoraux. Descendez doucement sur 3 secondes.",
+                        optimization: "Serrez vos omoplates l'une contre l'autre tout au long de la série.",
+                        avoid: "Ne laissez pas vos coudes taper violemment le sol en descendant."
+                    },
+                    {
+                        id: "samedi-s2",
+                        title: "Développé Militaire Assis (Épaules)",
+                        desc: "Élargissez votre carrure pour réduire visuellement la taille de votre sangle abdominale.",
+                        icon: "💪",
+                        target: "Épaules",
+                        volume: "3 séries de 10 répétitions",
+                        rest: "90 secondes",
+                        how: "Assis sur une chaise bien droite, montez vos haltères (6-8kg par bras) au niveau des oreilles. Poussez vers le haut sans verrouiller les coudes en haut de la course.",
+                        optimization: "Expirez de façon contrôlée pendant la montée de la charge.",
+                        avoid: "Ne cambrez pas le bas du dos. Si vous cambrez, c'est que la charge est trop lourde."
+                    },
+                    {
+                        id: "samedi-s3",
+                        title: "Curl Biceps & Extension Triceps (Superset)",
+                        desc: "Ciblez le galbe de vos bras en enchaînant deux exercices.",
+                        icon: "🔥",
+                        target: "Bras (Biceps / Triceps)",
+                        volume: "3 séries de 12 répétitions de chaque enchaînées",
+                        rest: "60 secondes",
+                        how: "Faites vos 12 boucles de Curl biceps debout, puis prenez immédiatement un haltère lourd à deux mains au-dessus de la tête et descendez-le derrière votre nuque pour 12 répétitions d'extension triceps.",
+                        optimization: "Verrouillez vos coudes le long du corps ou près de vos oreilles. Seul l'avant-bras bouge.",
+                        avoid: "Ne balancez pas le haut de votre corps d'avant en arrière pour soulever."
+                    }
+                ],
+                holistic: [
+                    {
+                        id: "samedi-h1",
+                        title: "Détente Mentale du Week-end",
+                        desc: "Une déconnexion complète des outils professionnels.",
+                        icon: "🌴",
+                        how: "Profitez d'un moment en extérieur avec vos enfants ou votre entourage, sans regarder votre téléphone.",
+                        why: "L'apaisement de votre système nerveux central est essentiel pour enrayer l'excès de cortisol."
+                    }
+                ]
+            },
+            // 6: DIMANCHE
+            {
+                dayName: "Dimanche",
+                overview: "Aujourd'hui, on attaque la ceinture abdominale de façon ciblée avec des exercices à l'élastique et du gainage dynamique.",
+                meals: [
+                    {
+                        id: "dimanche-m1",
+                        title: "Petit-Déjeuner Récupération",
+                        desc: "Pain de seigle ou complet, St Moret, Zaatar, Shaker de Whey Isolate.",
+                        icon: "🍞",
+                        ingredients: ["2 tranches de pain complet, 20g de St Moret, Zaatar, 30g de Whey Isolate"],
+                        preparation: "Se référer aux instructions du lundi.",
+                        why: "Maintient l'ancrage de vos bonnes habitudes nutritionnelles."
+                    },
+                    {
+                        id: "dimanche-m2",
+                        title: "Déjeuner : Poulet Rôti Dominical",
+                        desc: "Le repas traditionnel de famille ajusté pour vos objectifs.",
+                        icon: "🍗",
+                        ingredients: [
+                            "150g de blanc de poulet rôti (sans la peau grasse)",
+                            "200g de haricots verts cuits à l'eau ou à la vapeur",
+                            "2 petite pommes de terre rôties au four"
+                        ],
+                        preparation: "Profitez du repas préparé pour tout le monde en ajustant simplement vos portions.",
+                        why: "Le poulet rôti est une excellente source de protéines. Les haricots verts vous apportent des fibres pour ralentir la digestion."
+                    },
+                    {
+                        id: "dimanche-m3",
+                        title: "Collation de l'après-midi (16h)",
+                        desc: "Shaker de Whey et une pomme après votre session d'abdos.",
+                        icon: "🥤",
+                        ingredients: [
+                            "30g de Whey Isolate dilués dans de l'eau",
+                            "1 pomme"
+                        ],
+                        preparation: "Consommez juste après vos abdominaux.",
+                        why: "Nourrit directement vos fibres musculaires sollicitées."
+                    }
+                ],
+                sport: [
+                    {
+                        id: "dimanche-s1",
+                        title: "Mountain Climbers (Abdos)",
+                        desc: "Le brûleur de graisse de la sangle abdominale par excellence.",
+                        icon: "🏃‍♂️",
+                        target: "Grand droit & Transverse",
+                        volume: "4 séries de 45 secondes",
+                        rest: "45 secondes",
+                        how: "En position de planche sur les mains. Ramenez vivement vos genoux vers la poitrine de manière alternée.",
+                        optimization: "Augmentez le rythme si vous vous sentez à l'aise tout en restant parfaitement gainé.",
+                        avoid: "N'arrondissez pas le haut du dos et ne montez pas les fesses."
+                    },
+                    {
+                        id: "dimanche-s2",
+                        title: "Woodchopper à l'Élastique",
+                        desc: "Ciblez le dessin de vos flancs pour gommer les poignées d'amour.",
+                        icon: "🪓",
+                        target: "Abdos Obliques",
+                        volume: "3 séries de 15 répétitions par côté",
+                        rest: "45 secondes",
+                        how: "Élastique accroché en hauteur dans un encadrement de porte. Saisissez-le à deux mains, bras tendus, et effectuez une rotation du buste en tirant de haut en bas vers le genou opposé.",
+                        optimization: "C'est votre sangle abdominale qui doit initier la rotation, pas vos bras.",
+                        avoid: "Ne gardez pas vos genoux bloqués. Laissez votre pied pivoter légèrement."
+                    },
+                    {
+                        id: "dimanche-s3",
+                        title: "Relevé de Jambes au Sol",
+                        desc: "Ciblez le bas de votre sangle abdominale.",
+                        icon: "📐",
+                        target: "Bas des Abdominaux",
+                        volume: "3 séries de 15 répétitions",
+                        rest: "60 secondes",
+                        how: "Allongé sur le dos, mains sous vos fessiers pour caler vos lombaires. Gardez vos jambes tendues (ou légèrement fléchies si difficile) et levez-les vers le plafond, puis descendez lentement sans toucher le sol.",
+                        optimization: "Contrôlez activement la descente des jambes (3 secondes).",
+                        avoid: "Ne cambrez absolument pas le bas du dos lors de la descente."
+                    }
+                ],
+                holistic: [
+                    {
+                        id: "dimanche-h1",
+                        title: "Étirement du Psoas (Lombaires)",
+                        desc: "Libérez votre dos avant d'attaquer la nouvelle semaine de travail.",
+                        icon: "🤸‍♂️",
+                        how: "Maintenez la position de fente basse pendant 45 secondes par jambe comme le lundi soir.",
+                        why: "L'étirement du psoas prévient les tensions lombaires et améliore votre posture debout."
+                    }
+                ]
+            }
+        ];
+
+        const dinnerPool = [
+            {
+                id: "diner-poulet-brocoli",
+                title: "Émincé de Poulet & Brocolis",
+                desc: "Plat express familial ajustable en féculents.",
+                icon: "🍗",
+                ingredients: [
+                    "150g de filet de poulet émincé",
+                    "250g de têtes de brocolis surgelées (rapide et sain)",
+                    "50g de riz basmati pesé cuit (petite portion)"
+                ],
+                preparation: "Chauffez un filet d'huile d'olive dans une poêle. Saisissez le poulet et les brocolis. Ajoutez 1 cuillère à soupe de sauce soja allégée en sel en fin de cuisson.",
+                why: "Apporte des acides aminés de qualité pour la nuit sans surcharger l'organisme en glucides tardifs.",
+                defaultDays: [0, 3] // Lundi, Jeudi
+            },
+            {
+                id: "diner-saumon-patate",
+                title: "Pavé de Saumon & Patate Douce",
+                desc: "Un dîner gourmand et sain riche en oméga-3.",
+                icon: "🐟",
+                ingredients: [
+                    "1 pavé de saumon frais (130g)",
+                    "120g de purée de patate douce nature",
+                    "Une grande assiette de salade verte assaisonnée de colza"
+                ],
+                preparation: "Déposez le saumon sur une plaque de cuisson au four (180°C pendant 12-15 minutes). Faites cuire la patate douce à la vapeur et servez chaud.",
+                why: "Le saumon régule l'inflammation articulaire et favorise la sensibilité à l'insuline grâce à ses graisses saines.",
+                defaultDays: [1, 4] // Mardi, Vendredi
+            },
+            {
+                id: "diner-omelette-champignons",
+                title: "Omelette Champignons & Salade",
+                desc: "Repas express ultra-léger et riche en protéines biologiques.",
+                icon: "🍳",
+                ingredients: [
+                    "3 œufs entiers de poule élevée en plein air",
+                    "150g de champignons de Paris émincés",
+                    "1 tranche de pain de seigle"
+                ],
+                preparation: "Faites suer les champignons à la poêle. Battez les œufs énergiquement à la fourchette, versez et laissez cuire 5 minutes à feu moyen.",
+                why: "L'œuf entier contient de la choline et de bons nutriments parfaits pour la récupération cellulaire nocturne.",
+                defaultDays: [2, 5] // Mercredi, Samedi
+            },
+            {
+                id: "diner-pates-bolognaise",
+                title: "Pâtes Complètes Bolognaise Light",
+                desc: "Un repas réconfortant, rapide et très rassasiant.",
+                icon: "🍝",
+                ingredients: [
+                    "120g de viande de bœuf hachée à 5% de matières grasses",
+                    "80g de pâtes complètes cuites",
+                    "150ml de coulis de tomate pur nature",
+                    "Une pincée d'origan, sel et poivre"
+                ],
+                preparation: "Faites cuire vos pâtes. À côté, faites dorer le bœuf, ajoutez le coulis de tomate, puis mélangez le tout.",
+                why: "Les pâtes complètes ont un index glycémique bas qui n'entraîne pas de stockage abdominal si les quantités sont modérées.",
+                defaultDays: [3, 6] // Jeudi, Dimanche
+            },
+            {
+                id: "diner-cabillaud-soleil",
+                title: "Dos de Cabillaud & Légumes du Soleil",
+                desc: "Un dîner de fin de semaine léger et digeste.",
+                icon: "🐟",
+                ingredients: [
+                    "150g de dos de cabillaud",
+                    "300g de poêlée de légumes du soleil surgelés (sans huile ajoutée)"
+                ],
+                preparation: "Faites cuire le poisson à la vapeur (ou 4 minutes au micro-ondes). Saisissez les légumes à la poêle. Servez bien chaud.",
+                why: "Un dîner pauvre en calories mais riche en nutriments pour laisser vos organes digestifs au repos pendant votre sommeil.",
+                defaultDays: [4, 0] // Vendredi, Lundi
+            },
+            {
+                id: "diner-burger-leger",
+                title: "Burger Maison Léger & Salade",
+                desc: "Un moment plaisir sans ruiner vos efforts de la semaine.",
+                icon: "🍔",
+                ingredients: [
+                    "1 pain complet spécial burger",
+                    "1 steak haché 5%",
+                    "1 fine tranche de cheddar",
+                    "Tomate, oignons, salade verte à volonté"
+                ],
+                preparation: "Préparez votre burger maison en cuisant le steak. Assemblez avec le pain complet toasté et servez avec une grande salade.",
+                why: "Permet de soutenir le moral tout en contrôlant l'apport calorique grâce aux ingrédients complets et maigres.",
+                defaultDays: [5, 1] // Samedi, Mardi
+            },
+            {
+                id: "diner-poulet-roti",
+                title: "Poulet Rôti & Haricots Verts",
+                desc: "Le classique dominical ajusté pour vos objectifs.",
+                icon: "🍗",
+                ingredients: [
+                    "150g de blanc de poulet rôti sans la peau",
+                    "200g de haricots verts vapeur",
+                    "2 petites pommes de terre rôties au four"
+                ],
+                preparation: "Dégustez le blanc de poulet avec les haricots verts cuits à la vapeur et une quantité très modérée de pommes de terre rissolées.",
+                why: "Le poulet rôti apporte des protéines de qualité. Les haricots verts procurent des fibres rassasiantes.",
+                defaultDays: [6, 2] // Dimanche, Mercredi
+            }
+        ];
+
+        const GOOGLE_SHEET_API_URL = "https://script.google.com/macros/s/AKfycbweiiTyrVBQw9mZHQwR2HgfWaKbI1pvja_D7L6c6AUZaAQBK21RioG7KfsxfbfyGHQeWQ/exec";
+
+        let currentSelectedDate = new Date(); 
+        let chatHistory = []; 
+        let progressDatabase = {}; 
+
+        // --- ENGINES & HELPERS ---
+
+        function formatDateToISO(date) {
+            const yyyy = date.getFullYear();
+            const mm = String(date.getMonth() + 1).padStart(2, '0');
+            const dd = String(date.getDate()).padStart(2, '0');
+            return `${yyyy}-${mm}-${dd}`;
+        }
+
+        function getProgramDayIndex(date) {
+            const day = date.getDay();
+            return day === 0 ? 6 : day - 1;
+        }
+
+        function formatFullFrenchDate(date) {
+            const options = { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' };
+            const str = date.toLocaleDateString('fr-FR', options);
+            return str.charAt(0).toUpperCase() + str.slice(1);
+        }
+
+        function getDaysOfCurrentWeek(date) {
+            const tempDate = new Date(date);
+            const day = tempDate.getDay();
+            const diff = tempDate.getDate() - day + (day === 0 ? -6 : 1);
+            const monday = new Date(tempDate.setDate(diff));
+            
+            const weekDays = [];
+            for (let i = 0; i < 7; i++) {
+                const nextDay = new Date(monday);
+                nextDay.setDate(monday.getDate() + i);
+                weekDays.push(nextDay);
+            }
+            return weekDays;
+        }
+
+        async function fetchFromGoogleSheets() {
+            showToast("Chargement des données...", "📥");
+            try {
+                const response = await fetch(GOOGLE_SHEET_API_URL, {
+                    method: 'GET',
+                    mode: 'cors'
+                });
+                if (response.ok) {
+                    const data = await response.json();
+                    if (data && typeof data === 'object') {
+                        progressDatabase = { ...progressDatabase, ...data };
+                        saveToLocalStorageOnly();
+                        showToast("Synchronisé avec le Cloud !", "☁️");
+                    }
+                } else {
+                    showToast("Google Sheets inaccessible. Mode hors ligne.", "⚠️");
+                }
+            } catch (error) {
+                console.warn("Could not fetch from Google Sheets", error);
+                showToast("Mode hors ligne actif", "🔌");
+            }
+            selectDate(currentSelectedDate);
+        }
+
+        async function saveToGoogleSheets() {
+            try {
+                await fetch(GOOGLE_SHEET_API_URL, {
+                    method: 'POST',
+                    mode: 'no-cors',
+                    headers: {
+                        'Content-Type': 'text/plain'
+                    },
+                    body: JSON.stringify(progressDatabase)
+                });
+                showToast("Sauvegarde Cloud réussie !", "☁️");
+            } catch (error) {
+                console.error("Sheets POST Error:", error);
+                showToast("Sauvegarde locale uniquement (hors ligne)", "🔌");
+            }
+        }
+
+        async function callGeminiAPI(userQuery, systemPrompt) {
+            const apiKey = "";
+            const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-3-flash-preview:generateContent?key=${apiKey}`;
+
+            const payload = {
+                contents: [{ parts: [{ text: userQuery }] }],
+                systemInstruction: {
+                    parts: [{ text: systemPrompt }]
+                }
+            };
+
+            let delay = 1000;
+            for (let attempt = 0; attempt < 3; attempt++) {
+                try {
+                    const response = await fetch(apiUrl, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(payload)
+                    });
+                    
+                    if (response.ok) {
+                        const result = await response.json();
+                        return result.candidates?.[0]?.content?.parts?.[0]?.text || "Désolé, je n'ai pas pu générer de réponse.";
+                    }
+                } catch (error) {
+                    // Retry trigger
+                }
+                await new Promise(resolve => setTimeout(resolve, delay));
+                delay *= 2;
+            }
+            return "Une erreur de connexion est survenue. Veuillez réessayer plus tard.";
+        }
+
+        function formatMarkdown(text) {
+            if (!text) return "";
+            return text
+                .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
+                .replace(/\*(.*?)\*/g, '<em>$1</em>')
+                .replace(/\n\* (.*?)/g, '<br>• $1')
+                .replace(/\n/g, '<br>');
+        }
+
+        window.onload = async function() {
+            const localSaved = localStorage.getItem('coachRecompProgress_v4');
+            if (localSaved) {
+                progressDatabase = JSON.parse(localSaved);
+            }
+            currentSelectedDate = new Date();
+            selectDate(currentSelectedDate);
+            await fetchFromGoogleSheets();
+        };
+
+        function saveToLocalStorageOnly() {
+            localStorage.setItem('coachRecompProgress_v4', JSON.stringify(progressDatabase));
+        }
+
+        async function saveToStorage() {
+            saveToLocalStorageOnly();
+            await saveToGoogleSheets();
+        }
+
+        function initDateProgress(dateStr) {
+            if (!progressDatabase[dateStr]) {
+                progressDatabase[dateStr] = {};
+            }
+        }
+
+        function getDinnerOptionsForDay(selectedDate) {
+            const dateStr = formatDateToISO(selectedDate);
+            initDateProgress(dateStr);
+
+            let completedDinnerId = null;
+            dinnerPool.forEach(dinner => {
+                if (progressDatabase[dateStr][dinner.id]) {
+                    completedDinnerId = dinner.id;
+                }
+            });
+
+            const excludedIds = new Set();
+            for (let i = 1; i <= 7; i++) {
+                const pastDate = new Date(selectedDate);
+                pastDate.setDate(selectedDate.getDate() - i);
+                const pastDateStr = formatDateToISO(pastDate);
+                
+                if (progressDatabase[pastDateStr]) {
+                    dinnerPool.forEach(dinner => {
+                        if (progressDatabase[pastDateStr][dinner.id]) {
+                            excludedIds.add(dinner.id);
+                        }
+                    });
+                }
+            }
+
+            let selectedDinners = [];
+
+            if (completedDinnerId) {
+                const completedDinner = dinnerPool.find(x => x.id === completedDinnerId);
+                if (completedDinner) {
+                    selectedDinners.push(completedDinner);
+                }
+            }
+
+            const dIdx = getProgramDayIndex(selectedDate);
+
+            const preferredCandidates = dinnerPool.filter(dinner => 
+                !excludedIds.has(dinner.id) && 
+                !selectedDinners.some(s => s.id === dinner.id) &&
+                dinner.defaultDays.includes(dIdx)
+            );
+            
+            preferredCandidates.forEach(dinner => {
+                if (selectedDinners.length < 3) {
+                    selectedDinners.push(dinner);
+                }
+            });
+
+            const otherCandidates = dinnerPool.filter(dinner => 
+                !excludedIds.has(dinner.id) && 
+                !selectedDinners.some(s => s.id === dinner.id)
+            );
+
+            otherCandidates.forEach(dinner => {
+                if (selectedDinners.length < 3) {
+                    selectedDinners.push(dinner);
+                }
+            });
+
+            if (selectedDinners.length < 3) {
+                const fallbackCandidates = dinnerPool.filter(dinner => 
+                    !selectedDinners.some(s => s.id === dinner.id)
+                );
+                fallbackCandidates.forEach(dinner => {
+                    if (selectedDinners.length < 3) {
+                        selectedDinners.push(dinner);
+                    }
+                });
+            }
+
+            selectedDinners.sort((a, b) => dinnerPool.indexOf(a) - dinnerPool.indexOf(b));
+            return selectedDinners;
+        }
+
+        function selectDate(date) {
+            currentSelectedDate = new Date(date);
+            const dateStr = formatDateToISO(currentSelectedDate);
+            initDateProgress(dateStr);
+
+            const dayIndex = getProgramDayIndex(currentSelectedDate);
+            const dayData = programDatabase[dayIndex];
+
+            document.getElementById('current-day-title').innerText = formatFullFrenchDate(currentSelectedDate);
+            document.getElementById('day-overview').innerText = dayData.overview;
+
+            renderWeeklyCalendarTabs();
+
+            renderMeals(dayData.meals);
+            renderSports(dayData.sport);
+            renderHolistic(dayData.holistic);
+
+            calculateDayProgress();
+            updateStatsAndCharts();
+
+            const picker = document.getElementById('calendar-hidden-input');
+            if (picker) {
+                picker.value = dateStr;
+            }
+        }
+
+        function navigateWeek(direction) {
+            const newDate = new Date(currentSelectedDate);
+            newDate.setDate(currentSelectedDate.getDate() + (direction * 7));
+            selectDate(newDate);
+        }
+
+        function onCalendarDatePicked(isoString) {
+            if (!isoString) return;
+            const parts = isoString.split('-');
+            const date = new Date(parts[0], parts[1] - 1, parts[2]);
+            selectDate(date);
+        }
+
+        function renderWeeklyCalendarTabs() {
+            const container = document.getElementById('weekly-days-tabs-container');
+            if (!container) return;
+            container.innerHTML = '';
+
+            const weekDays = getDaysOfCurrentWeek(currentSelectedDate);
+            const todayStr = formatDateToISO(new Date());
+
+            weekDays.forEach(day => {
+                const dayStr = formatDateToISO(day);
+                const isSelected = dayStr === formatDateToISO(currentSelectedDate);
+                const isToday = dayStr === todayStr;
+
+                const dayNum = day.getDate();
+                const dayLabel = day.toLocaleDateString('fr-FR', { weekday: 'short' }).replace('.', '');
+                
+                const pct = getDayCompletionPercentage(day);
+
+                const btn = document.createElement('button');
+                btn.onclick = () => selectDate(day);
+                
+                let activeClass = "bg-indigo-600 text-white border-indigo-600 font-extrabold shadow-md transform scale-105";
+                let inactiveClass = "bg-white text-slate-700 border-slate-200 hover:bg-slate-50";
+                let todayBorder = isToday ? "ring-2 ring-indigo-500/30" : "";
+
+                btn.className = `snap-start flex-none flex flex-col items-center justify-center w-12 py-1.5 rounded-2xl border text-xs transition-all ${isSelected ? activeClass : inactiveClass} ${todayBorder}`;
+                
+                btn.innerHTML = `
+                    <span class="text-[9px] uppercase tracking-wider ${isSelected ? 'text-indigo-200' : 'text-slate-400 font-medium'}">${dayLabel}</span>
+                    <span class="text-sm font-black mt-0.5">${dayNum}</span>
+                    <span class="text-[8px] mt-0.5 font-bold ${pct === 100 ? (isSelected ? 'text-emerald-300' : 'text-emerald-500') : (isSelected ? 'text-indigo-200' : 'text-slate-400')}">${pct}%</span>
+                `;
+                
+                container.appendChild(btn);
+            });
+        }
+
+        function getDayCompletionPercentage(date) {
+            const dateStr = formatDateToISO(date);
+            const dayIndex = getProgramDayIndex(date);
+            const dayData = programDatabase[dayIndex];
+
+            const totalItems = dayData.meals.length + 1 + dayData.sport.length + dayData.holistic.length;
+            let doneCount = 0;
+
+            if (progressDatabase[dateStr]) {
+                dayData.meals.forEach(item => { if (progressDatabase[dateStr][item.id]) doneCount++; });
+                dayData.sport.forEach(item => { if (progressDatabase[dateStr][item.id]) doneCount++; });
+                dayData.holistic.forEach(item => { if (progressDatabase[dateStr][item.id]) doneCount++; });
+                dinnerPool.forEach(dinner => { if (progressDatabase[dateStr][dinner.id]) doneCount++; });
+            }
+
+            return totalItems > 0 ? Math.round((doneCount / totalItems) * 100) : 0;
+        }
+
+        function updateCounters(dayData) {
+            const dateStr = formatDateToISO(currentSelectedDate);
+            
+            const baseMealsDone = dayData.meals.filter(item => progressDatabase[dateStr][item.id]).length;
+            
+            let dinnerDone = 0;
+            dinnerPool.forEach(dinner => {
+                if (progressDatabase[dateStr][dinner.id]) dinnerDone = 1;
+            });
+
+            const totalMealsDone = baseMealsDone + dinnerDone;
+            const totalMealsGoal = dayData.meals.length + 1;
+            const mealsRemaining = totalMealsGoal - totalMealsDone;
+
+            document.getElementById('meals-count').innerText = `${mealsRemaining} restant${mealsRemaining > 1 ? 's' : ''}`;
+            document.getElementById('meals-count').className = mealsRemaining === 0 
+                ? "text-xs font-extrabold text-emerald-600 bg-emerald-50 px-2.5 py-0.5 rounded-full border border-emerald-100"
+                : "text-xs font-bold text-slate-400 bg-slate-200/50 px-2.5 py-0.5 rounded-full";
+
+            const sportsDone = dayData.sport.filter(item => progressDatabase[dateStr][item.id]).length;
+            const sportsRemaining = dayData.sport.length - sportsDone;
+            document.getElementById('sport-count').innerText = `${sportsRemaining} restant${sportsRemaining > 1 ? 's' : ''}`;
+            document.getElementById('sport-count').className = sportsRemaining === 0 
+                ? "text-xs font-extrabold text-emerald-600 bg-emerald-50 px-2.5 py-0.5 rounded-full border border-emerald-100"
+                : "text-xs font-bold text-slate-400 bg-slate-200/50 px-2.5 py-0.5 rounded-full";
+
+            const holisticDone = dayData.holistic.filter(item => progressDatabase[dateStr][item.id]).length;
+            const holisticRemaining = dayData.holistic.length - holisticDone;
+            document.getElementById('holistic-count').innerText = `${holisticRemaining} restant${holisticRemaining > 1 ? 's' : ''}`;
+            document.getElementById('holistic-count').className = holisticRemaining === 0 
+                ? "text-xs font-extrabold text-emerald-600 bg-emerald-50 px-2.5 py-0.5 rounded-full border border-emerald-100"
+                : "text-xs font-bold text-slate-400 bg-slate-200/50 px-2.5 py-0.5 rounded-full";
+        }
+
+        function calculateDayProgress() {
+            const dateStr = formatDateToISO(currentSelectedDate);
+            const dayIndex = getProgramDayIndex(currentSelectedDate);
+            const dayData = programDatabase[dayIndex];
+
+            const totalItems = dayData.meals.length + 1 + dayData.sport.length + dayData.holistic.length;
+            let doneCount = 0;
+
+            dayData.meals.forEach(item => { if (progressDatabase[dateStr][item.id]) doneCount++; });
+            dayData.sport.forEach(item => { if (progressDatabase[dateStr][item.id]) doneCount++; });
+            dayData.holistic.forEach(item => { if (progressDatabase[dateStr][item.id]) doneCount++; });
+            dinnerPool.forEach(dinner => { if (progressDatabase[dateStr][dinner.id]) doneCount++; });
+
+            const percentage = totalItems > 0 ? Math.round((doneCount / totalItems) * 100) : 0;
+
+            document.getElementById('progress-bar').style.width = `${percentage}%`;
+            document.getElementById('progress-ratio').innerText = `${doneCount}/${totalItems}`;
+
+            if (percentage === 100) {
+                document.getElementById('progress-bar').className = "h-full bg-gradient-to-r from-emerald-500 to-green-500 rounded-full transition-all duration-500 ease-out";
+            } else {
+                document.getElementById('progress-bar').className = "h-full bg-gradient-to-r from-indigo-500 to-emerald-500 rounded-full transition-all duration-500 ease-out";
+            }
+
+            updateCounters(dayData);
+        }
+
+        function updateStatsAndCharts() {
+            const weekDays = getDaysOfCurrentWeek(currentSelectedDate);
+            
+            const barChartContainer = document.getElementById('stats-weekly-bar-chart');
+            if (!barChartContainer) return;
+            barChartContainer.innerHTML = '';
+
+            let totalDoneItemsAllWeek = 0;
+            let totalGoalItemsAllWeek = 0;
+
+            let nutritionDone = 0, nutritionGoal = 0;
+            let sportDone = 0, sportGoal = 0;
+            let holisticDone = 0, holisticGoal = 0;
+
+            weekDays.forEach(day => {
+                const dayStr = formatDateToISO(day);
+                const dayIndex = getProgramDayIndex(day);
+                const dayData = programDatabase[dayIndex];
+
+                const dayGoal = dayData.meals.length + 1 + dayData.sport.length + dayData.holistic.length;
+                let dayDone = 0;
+
+                nutritionGoal += dayData.meals.length + 1;
+                sportGoal += dayData.sport.length;
+                holisticGoal += dayData.holistic.length;
+
+                if (progressDatabase[dayStr]) {
+                    dayData.meals.forEach(item => { if (progressDatabase[dayStr][item.id]) { dayDone++; nutritionDone++; } });
+                    dayData.sport.forEach(item => { if (progressDatabase[dayStr][item.id]) { dayDone++; sportDone++; } });
+                    dayData.holistic.forEach(item => { if (progressDatabase[dayStr][item.id]) { dayDone++; holisticDone++; } });
+                    dinnerPool.forEach(dinner => { if (progressDatabase[dayStr][dinner.id]) { dayDone++; nutritionDone++; } });
+                }
+
+                totalDoneItemsAllWeek += dayDone;
+                totalGoalItemsAllWeek += dayGoal;
+
+                const completionPercentage = dayGoal > 0 ? Math.round((dayDone / dayGoal) * 100) : 0;
+                const isSelected = dayStr === formatDateToISO(currentSelectedDate);
+
+                const barColumn = document.createElement('div');
+                barColumn.className = "flex-1 flex flex-col items-center h-full justify-end group cursor-pointer";
+                barColumn.onclick = () => selectDate(day);
+
+                let barColorClass = "bg-indigo-600/30 group-hover:bg-indigo-600/55";
+                if (completionPercentage === 100) barColorClass = "bg-emerald-500/80 group-hover:bg-emerald-500";
+                if (isSelected) barColorClass = completionPercentage === 100 ? "bg-emerald-500 ring-2 ring-offset-2 ring-emerald-400" : "bg-indigo-600 ring-2 ring-offset-2 ring-indigo-400";
+
+                barColumn.innerHTML = `
+                    <span class="text-[9px] font-bold text-slate-500 opacity-0 group-hover:opacity-100 transition-opacity mb-1">${completionPercentage}%</span>
+                    <div class="w-full ${barColorClass} rounded-t-md transition-all duration-300" style="height: ${Math.max(completionPercentage, 5)}%"></div>
+                `;
+                
+                barChartContainer.appendChild(barColumn);
+            });
+
+            const nutritionPct = nutritionGoal > 0 ? Math.round((nutritionDone / nutritionGoal) * 100) : 0;
+            const sportPct = sportGoal > 0 ? Math.round((sportDone / sportGoal) * 100) : 0;
+            const holisticPct = holisticGoal > 0 ? Math.round((holisticDone / holisticGoal) * 100) : 0;
+
+            document.getElementById('stats-nutrition-percent').innerText = `${nutritionPct}%`;
+            document.getElementById('stats-nutrition-bar').style.width = `${nutritionPct}%`;
+
+            document.getElementById('stats-sport-percent').innerText = `${sportPct}%`;
+            document.getElementById('stats-sport-bar').style.width = `${sportPct}%`;
+
+            document.getElementById('stats-holistic-percent').innerText = `${holisticPct}%`;
+            document.getElementById('stats-holistic-bar').style.width = `${holisticPct}%`;
+
+            const overallPct = totalGoalItemsAllWeek > 0 ? Math.round((totalDoneItemsAllWeek / totalGoalItemsAllWeek) * 100) : 0;
+            document.getElementById('global-progress-percent').innerText = `${overallPct}%`;
+        }
+
+        function resetTodayProgress() {
+            const dateStr = formatDateToISO(currentSelectedDate);
+            if (progressDatabase[dateStr]) {
+                progressDatabase[dateStr] = {};
+                saveToStorage();
+                selectDate(currentSelectedDate);
+                showToast("Journée réinitialisée", "🔄");
+            }
+        }
+
+        function renderMeals(meals) {
+            const container = document.getElementById('meals-container');
+            if (!container) return;
+            container.innerHTML = '';
+            const dateStr = formatDateToISO(currentSelectedDate);
+
+            meals.forEach(item => {
+                const isChecked = progressDatabase[dateStr][item.id] || false;
+                const card = document.createElement('div');
+                card.className = `bg-white border p-4 rounded-2xl flex items-center justify-between shadow-sm transition-all duration-200 active:scale-[0.98] ${isChecked ? 'border-slate-100 bg-slate-50/40 opacity-75' : 'border-slate-200/80 hover:border-slate-300'}`;
+                
+                card.innerHTML = `
+                    <div class="flex items-center gap-3.5 flex-1 min-w-0 cursor-pointer" onclick="openMealDetails('${item.id}')">
+                        <div class="w-10 h-10 rounded-xl bg-orange-50 flex items-center justify-center text-lg shadow-sm border border-orange-100/50">
+                            ${item.icon}
+                        </div>
+                        <div class="flex-1 min-w-0">
+                            <h4 class="text-xs font-bold text-orange-600/90 uppercase tracking-wider mb-0.5">Repas</h4>
+                            <p class="text-sm font-black text-slate-800 truncate ${isChecked ? 'checked-line' : ''}">${item.title}</p>
+                            <p class="text-xs text-slate-400 truncate mt-0.5">${item.desc}</p>
+                        </div>
+                    </div>
+                    <div class="pl-3 flex items-center">
+                        <button onclick="toggleItemStatus('meals', '${item.id}')" class="w-10 h-10 rounded-xl flex items-center justify-center border-2 transition-all ${isChecked ? 'bg-emerald-500 border-emerald-500 text-white shadow-md shadow-emerald-100' : 'border-slate-200 hover:border-indigo-400 bg-white'}">
+                            ${isChecked ? '✓' : ''}
+                        </button>
+                    </div>
+                `;
+                container.appendChild(card);
+            });
+
+            const dinnerHeader = document.createElement('div');
+            dinnerHeader.className = "pt-4 pb-1 border-t border-slate-100 mt-4";
+            dinnerHeader.innerHTML = `
+                <div class="flex items-center justify-between">
+                    <h4 class="text-xs font-extrabold uppercase text-indigo-600 tracking-wider">Option Dîner du soir (Choisissez-en 1)</h4>
+                    <span class="text-[9px] text-slate-400 bg-slate-100 px-2 py-0.5 rounded-full font-bold">Sans répétition sur 7 jours</span>
+                </div>
+            `;
+            container.appendChild(dinnerHeader);
+
+            const activeDinners = getDinnerOptionsForDay(currentSelectedDate);
+            activeDinners.forEach(item => {
+                const isChecked = progressDatabase[dateStr][item.id] || false;
+                const card = document.createElement('div');
+                card.className = `bg-white border p-4 rounded-2xl flex items-center justify-between shadow-sm transition-all duration-200 active:scale-[0.98] ${isChecked ? 'border-indigo-100 bg-indigo-50/10 shadow-indigo-50/30' : 'border-slate-200/80 hover:border-slate-300'}`;
+                
+                card.innerHTML = `
+                    <div class="flex items-center gap-3.5 flex-1 min-w-0 cursor-pointer" onclick="openDinnerDetails('${item.id}')">
+                        <div class="w-10 h-10 rounded-xl bg-violet-50 flex items-center justify-center text-lg shadow-sm border border-violet-100/50">
+                            ${item.icon}
+                        </div>
+                        <div class="flex-1 min-w-0">
+                            <h4 class="text-xs font-bold text-violet-600 uppercase tracking-wider mb-0.5">Dîner</h4>
+                            <p class="text-sm font-black text-slate-800 truncate ${isChecked ? 'checked-line' : ''}">${item.title}</p>
+                            <p class="text-xs text-slate-400 truncate mt-0.5">${item.desc}</p>
+                        </div>
+                    </div>
+                    <div class="pl-3 flex items-center">
+                        <button onclick="toggleItemStatus('meals', '${item.id}')" class="w-10 h-10 rounded-xl flex items-center justify-center border-2 transition-all ${isChecked ? 'bg-emerald-500 border-emerald-500 text-white shadow-md shadow-emerald-100' : 'border-slate-200 hover:border-indigo-400 bg-white'}">
+                            ${isChecked ? '✓' : ''}
+                        </button>
+                    </div>
+                `;
+                container.appendChild(card);
+            });
+        }
+
+        function renderSports(sports) {
+            const container = document.getElementById('sports-container');
+            if (!container) return;
+            container.innerHTML = '';
+            const dateStr = formatDateToISO(currentSelectedDate);
+
+            sports.forEach(item => {
+                const isChecked = progressDatabase[dateStr][item.id] || false;
+                const card = document.createElement('div');
+                card.className = `bg-white border p-4 rounded-2xl flex items-center justify-between shadow-sm transition-all duration-200 active:scale-[0.98] ${isChecked ? 'border-slate-100 bg-slate-50/40 opacity-75' : 'border-slate-200/80 hover:border-slate-300'}`;
+                
+                card.innerHTML = `
+                    <div class="flex items-center gap-3.5 flex-1 min-w-0 cursor-pointer" onclick="openSportDetails('${item.id}')">
+                        <div class="w-10 h-10 rounded-xl bg-indigo-50 flex items-center justify-center text-lg shadow-sm border border-indigo-100/50">
+                            ${item.icon}
+                        </div>
+                        <div class="flex-1 min-w-0">
+                            <h4 class="text-xs font-bold text-indigo-600 uppercase tracking-wider mb-0.5">${item.target ? 'Échauffé / Force' : 'Repos'}</h4>
+                            <p class="text-sm font-black text-slate-800 truncate ${isChecked ? 'checked-line' : ''}">${item.title}</p>
+                            <p class="text-xs text-slate-400 truncate mt-0.5">${item.desc}</p>
+                        </div>
+                    </div>
+                    <div class="pl-3 flex items-center">
+                        <button onclick="toggleItemStatus('sport', '${item.id}')" class="w-10 h-10 rounded-xl flex items-center justify-center border-2 transition-all ${isChecked ? 'bg-emerald-500 border-emerald-500 text-white shadow-md shadow-emerald-100' : 'border-slate-200 hover:border-indigo-400 bg-white'}">
+                            ${isChecked ? '✓' : ''}
+                        </button>
+                    </div>
+                `;
+                container.appendChild(card);
+            });
+        }
+
+        function renderHolistic(holistics) {
+            const container = document.getElementById('holistic-container');
+            if (!container) return;
+            container.innerHTML = '';
+            const dateStr = formatDateToISO(currentSelectedDate);
+
+            holistics.forEach(item => {
+                const isChecked = progressDatabase[dateStr][item.id] || false;
+                const card = document.createElement('div');
+                card.className = `bg-white border p-4 rounded-2xl flex items-center justify-between shadow-sm transition-all duration-200 active:scale-[0.98] ${isChecked ? 'border-slate-100 bg-slate-50/40 opacity-75' : 'border-slate-200/80 hover:border-slate-300'}`;
+                
+                card.innerHTML = `
+                    <div class="flex items-center gap-3.5 flex-1 min-w-0 cursor-pointer" onclick="openHolisticDetails('${item.id}')">
+                        <div class="w-10 h-10 rounded-xl bg-emerald-50 flex items-center justify-center text-lg shadow-sm border border-emerald-100/50">
+                            ${item.icon}
+                        </div>
+                        <div class="flex-1 min-w-0">
+                            <h4 class="text-[10px] font-extrabold text-emerald-600 uppercase tracking-wider mb-0.5">Mental &amp; Dos</h4>
+                            <p class="text-xs font-black text-slate-800 truncate ${isChecked ? 'checked-line' : ''}">${item.title}</p>
+                            <p class="text-[11px] text-slate-400 truncate mt-0.5">${item.desc}</p>
+                        </div>
+                    </div>
+                    <div class="pl-3 flex items-center">
+                        <button onclick="toggleItemStatus('holistic', '${item.id}')" class="w-10 h-10 rounded-xl flex items-center justify-center border-2 transition-all ${isChecked ? 'bg-emerald-500 border-emerald-500 text-white shadow-md shadow-emerald-100' : 'border-slate-200 hover:border-emerald-400 bg-white'}">
+                            ${isChecked ? '✓' : ''}
+                        </button>
+                    </div>
+                `;
+                container.appendChild(card);
+            });
+        }
+
+        function toggleItemStatus(type, itemId) {
+            const dateStr = formatDateToISO(currentSelectedDate);
+            initDateProgress(dateStr);
+            
+            if (itemId.startsWith('diner-')) {
+                const isCurrentlyChecked = progressDatabase[dateStr][itemId] || false;
+                dinnerPool.forEach(dinner => {
+                    progressDatabase[dateStr][dinner.id] = false;
+                });
+                progressDatabase[dateStr][itemId] = !isCurrentlyChecked;
+            } else {
+                progressDatabase[dateStr][itemId] = !progressDatabase[dateStr][itemId];
+            }
+            
+            saveToStorage();
+            selectDate(currentSelectedDate);
+            
+            if (progressDatabase[dateStr][itemId]) {
+                showToast("🎯 Objectif validé !", "💪");
+            }
+        }
+
+        function showToast(message, icon = "✨") {
+            const toast = document.getElementById('toast-notification');
+            const iconSpan = document.getElementById('toast-icon');
+            const msgSpan = document.getElementById('toast-message');
+            if (iconSpan && msgSpan) {
+                iconSpan.innerText = icon;
+                msgSpan.innerText = message;
+            }
+            
+            toast.classList.remove('translate-x-72', 'opacity-0');
+            toast.classList.add('translate-x-0', 'opacity-100');
+
+            setTimeout(() => {
+                toast.classList.add('translate-x-72', 'opacity-0');
+                toast.classList.remove('translate-x-0', 'opacity-100');
+            }, 3000);
+        }
+
+        function openMealDetails(itemId) {
+            const dateStr = formatDateToISO(currentSelectedDate);
+            const dayIndex = getProgramDayIndex(currentSelectedDate);
+            const item = programDatabase[dayIndex].meals.find(x => x.id === itemId);
+            if (!item) return;
+
+            const isChecked = progressDatabase[dateStr][item.id] || false;
+
+            const badge = document.getElementById('modal-category-badge');
+            badge.innerText = "NUTRITION";
+            badge.className = "text-[10px] font-extrabold uppercase px-2.5 py-1 rounded-full bg-orange-100 text-orange-700";
+            
+            document.getElementById('modal-subtitle').innerText = "Conseils du jour";
+
+            let ingredientsHTML = '';
+            item.ingredients.forEach(ing => {
+                ingredientsHTML += `<li class="flex items-start gap-2 text-slate-700 text-sm py-1 border-b border-slate-50 last:border-0"><span class="text-orange-500 font-bold">•</span><span>${ing}</span></li>`;
+            });
+
+            const body = document.getElementById('modal-body-content');
+            body.innerHTML = `
+                <div class="flex items-center gap-4 bg-orange-50/50 p-4 rounded-2xl border border-orange-100/50">
+                    <span class="text-4xl">${item.icon}</span>
+                    <div>
+                        <h5 class="text-lg font-black text-slate-950">${item.title}</h5>
+                        <p class="text-xs text-slate-400">${item.desc}</p>
+                    </div>
+                </div>
+
+                <div class="space-y-2">
+                    <h6 class="text-xs font-extrabold uppercase text-slate-400 tracking-wider">Ingrédients &amp; Quantités (Pour vos 69kg)</h6>
+                    <ul class="bg-slate-50 p-4 rounded-2xl border border-slate-100">
+                        ${ingredientsHTML}
+                    </ul>
+                </div>
+
+                <div class="space-y-1.5">
+                    <h6 class="text-xs font-extrabold uppercase text-slate-400 tracking-wider">Préparation express</h6>
+                    <p class="text-slate-700 text-sm leading-relaxed">${item.preparation}</p>
+                </div>
+
+                <div class="space-y-1.5 bg-indigo-50/40 p-4 rounded-xl border border-indigo-100/30">
+                    <h6 class="text-xs font-extrabold uppercase text-indigo-600 tracking-wider flex items-center gap-1">
+                        🔬 Pourquoi cet aliment ?
+                    </h6>
+                    <p class="text-indigo-950 text-xs leading-relaxed font-medium">${item.why}</p>
+                </div>
+
+                <div id="ia-alternative-box" class="hidden mt-4 p-4 bg-amber-50 border border-amber-200 rounded-2xl text-xs space-y-2">
+                    <h6 class="font-extrabold text-amber-800 flex items-center gap-1">✨ Variante proposée par CoachRecomp IA :</h6>
+                    <p id="ia-alternative-text" class="text-amber-950 leading-relaxed"></p>
+                </div>
+            `;
+
+            const iaBtn = document.getElementById('modal-ia-alternative-btn');
+            iaBtn.classList.remove('hidden');
+            iaBtn.onclick = () => getIAAlternative('meal', item);
+
+            setupModalAction('meals', item.id, isChecked);
+        }
+
+        function openDinnerDetails(itemId) {
+            const dateStr = formatDateToISO(currentSelectedDate);
+            const item = dinnerPool.find(x => x.id === itemId);
+            if (!item) return;
+
+            const isChecked = progressDatabase[dateStr][item.id] || false;
+
+            const badge = document.getElementById('modal-category-badge');
+            badge.innerText = "OPTION DÎNER";
+            badge.className = "text-[10px] font-extrabold uppercase px-2.5 py-1 rounded-full bg-violet-100 text-violet-700";
+            
+            document.getElementById('modal-subtitle').innerText = "Conseils du soir";
+
+            let ingredientsHTML = '';
+            item.ingredients.forEach(ing => {
+                ingredientsHTML += `<li class="flex items-start gap-2 text-slate-700 text-sm py-1 border-b border-slate-50 last:border-0"><span class="text-indigo-500 font-bold">•</span><span>${ing}</span></li>`;
+            });
+
+            const body = document.getElementById('modal-body-content');
+            body.innerHTML = `
+                <div class="flex items-center gap-4 bg-indigo-50/50 p-4 rounded-2xl border border-indigo-100/50">
+                    <span class="text-4xl">${item.icon}</span>
+                    <div>
+                        <h5 class="text-lg font-black text-slate-950">${item.title}</h5>
+                        <p class="text-xs text-slate-400">${item.desc}</p>
+                    </div>
+                </div>
+
+                <div class="space-y-2">
+                    <h6 class="text-xs font-extrabold uppercase text-slate-400 tracking-wider">Ingrédients &amp; Quantités (Pour vos 69kg)</h6>
+                    <ul class="bg-slate-50 p-4 rounded-2xl border border-slate-100">
+                        ${ingredientsHTML}
+                    </ul>
+                </div>
+
+                <div class="space-y-1.5">
+                    <h6 class="text-xs font-extrabold uppercase text-slate-400 tracking-wider">Préparation express</h6>
+                    <p class="text-slate-700 text-sm leading-relaxed">${item.preparation}</p>
+                </div>
+
+                <div class="space-y-1.5 bg-indigo-50/40 p-4 rounded-xl border border-indigo-100/30">
+                    <h6 class="text-xs font-extrabold uppercase text-indigo-600 tracking-wider flex items-center gap-1">
+                        🔬 Pourquoi cet aliment ?
+                    </h6>
+                    <p class="text-indigo-950 text-xs leading-relaxed font-medium">${item.why}</p>
+                </div>
+
+                <div id="ia-alternative-box" class="hidden mt-4 p-4 bg-amber-50 border border-amber-200 rounded-2xl text-xs space-y-2">
+                    <h6 class="font-extrabold text-amber-800 flex items-center gap-1">✨ Variante proposée par CoachRecomp IA :</h6>
+                    <p id="ia-alternative-text" class="text-amber-950 leading-relaxed"></p>
+                </div>
+            `;
+
+            const iaBtn = document.getElementById('modal-ia-alternative-btn');
+            iaBtn.classList.remove('hidden');
+            iaBtn.onclick = () => getIAAlternative('meal', item);
+
+            setupModalAction('meals', item.id, isChecked);
+        }
+
+        function openSportDetails(itemId) {
+            const dateStr = formatDateToISO(currentSelectedDate);
+            const dayIndex = getProgramDayIndex(currentSelectedDate);
+            const item = programDatabase[dayIndex].sport.find(x => x.id === itemId);
+            if (!item) return;
+
+            const isChecked = progressDatabase[dateStr][item.id] || false;
+
+            const badge = document.getElementById('modal-category-badge');
+            badge.innerText = "ENTRAÎNEMENT";
+            badge.className = "text-[10px] font-extrabold uppercase px-2.5 py-1 rounded-full bg-indigo-100 text-indigo-700";
+            
+            document.getElementById('modal-subtitle').innerText = "Exécution technique";
+
+            const body = document.getElementById('modal-body-content');
+
+            body.innerHTML = `
+                <div class="flex items-center gap-4 bg-indigo-50/50 p-4 rounded-2xl border border-indigo-100/50">
+                    <span class="text-4xl">${item.icon}</span>
+                    <div>
+                        <h5 class="text-lg font-black text-slate-950">${item.title}</h5>
+                        <p class="text-xs text-slate-500 font-bold">${item.target || 'Récupération'}</p>
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-2 gap-3 text-center">
+                    <div class="bg-slate-50 p-3 rounded-xl border border-slate-100">
+                        <span class="block text-[10px] font-bold text-slate-400 uppercase">Volume</span>
+                        <span class="text-xs font-black text-indigo-700">${item.volume || 'Actif'}</span>
+                    </div>
+                    <div class="bg-slate-50 p-3 rounded-xl border border-slate-100">
+                        <span class="block text-[10px] font-bold text-slate-400 uppercase">Repos recommandé</span>
+                        <span class="text-xs font-black text-indigo-700">${item.rest || 'Variable'}</span>
+                    </div>
+                </div>
+
+                <div class="space-y-1.5">
+                    <h6 class="text-xs font-extrabold uppercase text-slate-400 tracking-wider">Comment faire (Pas à pas)</h6>
+                    <p class="text-slate-700 text-sm leading-relaxed">${item.how}</p>
+                </div>
+
+                <div class="space-y-1.5 bg-emerald-50/50 p-4 rounded-xl border border-emerald-100/50">
+                    <h6 class="text-xs font-extrabold uppercase text-emerald-600 tracking-wider flex items-center gap-1">
+                        💡 Astuce d'optimisation
+                    </h6>
+                    <p class="text-emerald-950 text-xs leading-relaxed font-semibold">${item.optimization || 'Contrôler la descente.'}</p>
+                </div>
+
+                <div id="ia-alternative-box" class="hidden mt-4 p-4 bg-amber-50 border border-amber-200 rounded-2xl text-xs space-y-2">
+                    <h6 class="font-extrabold text-amber-800 flex items-center gap-1">✨ Régression / Variante proposée par l'IA :</h6>
+                    <p id="ia-alternative-text" class="text-amber-950 leading-relaxed"></p>
+                </div>
+            `;
+
+            const iaBtn = document.getElementById('modal-ia-alternative-btn');
+            iaBtn.classList.remove('hidden');
+            iaBtn.onclick = () => getIAAlternative('sport', item);
+
+            setupModalAction('sport', item.id, isChecked);
+        }
+
+        function openHolisticDetails(itemId) {
+            const dateStr = formatDateToISO(currentSelectedDate);
+            const dayIndex = getProgramDayIndex(currentSelectedDate);
+            const item = programDatabase[dayIndex].holistic.find(x => x.id === itemId);
+            if (!item) return;
+
+            const isChecked = progressDatabase[dateStr][item.id] || false;
+
+            const badge = document.getElementById('modal-category-badge');
+            badge.innerText = "RITUEL BIEN-ÊTRE";
+            badge.className = "text-[10px] font-extrabold uppercase px-2.5 py-1 rounded-full bg-emerald-100 text-emerald-700";
+            
+            document.getElementById('modal-subtitle').innerText = "Restauration globale";
+
+            const body = document.getElementById('modal-body-content');
+            body.innerHTML = `
+                <div class="flex items-center gap-4 bg-emerald-50/50 p-4 rounded-2xl border border-emerald-100/50">
+                    <span class="text-4xl">${item.icon}</span>
+                    <div>
+                        <h5 class="text-lg font-black text-slate-950">${item.title}</h5>
+                        <p class="text-xs text-slate-400">${item.desc}</p>
+                    </div>
+                </div>
+
+                <div class="space-y-1.5">
+                    <h6 class="text-xs font-extrabold uppercase text-slate-400 tracking-wider">Comment le pratiquer ?</h6>
+                    <p class="text-slate-700 text-sm leading-relaxed">${item.how}</p>
+                </div>
+
+                <div class="space-y-1.5 bg-emerald-50/50 p-4 rounded-xl border border-emerald-100/50">
+                    <h6 class="text-xs font-extrabold uppercase text-emerald-600 tracking-wider flex items-center gap-1">
+                        📈 Pourquoi c'est important ?
+                    </h6>
+                    <p class="text-emerald-950 text-xs leading-relaxed font-semibold">${item.why}</p>
+                </div>
+            `;
+
+            document.getElementById('modal-ia-alternative-btn').classList.add('hidden');
+
+            setupModalAction('holistic', item.id, isChecked);
+        }
+
+        async function getIAAlternative(type, item) {
+            const box = document.getElementById('ia-alternative-box');
+            const txt = document.getElementById('ia-alternative-text');
+            const btn = document.getElementById('modal-ia-alternative-btn');
+
+            box.classList.remove('hidden');
+            txt.innerHTML = `<span class="inline-block animate-pulse">Analyse en cours par CoachRecomp IA... 🧠</span>`;
+            btn.disabled = true;
+
+            let prompt = "";
+            let sysPrompt = "Tu es CoachRecomp, expert d'élite de 42 ans en nutrition saine et musculation de recomposition. Sois concis, direct, encourageant et formule des alternatives adaptées sans blabla commercial.";
+
+            if (type === 'meal') {
+                prompt = `Propose une seule alternative équivalente pour ce repas : "${item.title}" (${item.desc}). Ingrédients d'origine : ${JSON.stringify(item.ingredients)}. Donne juste 2-3 ingrédients alternatifs et 1 ligne d'explication rapide.`;
+            } else {
+                prompt = `Propose une seule variante simplifiée (régression) ou un exercice alternatif avec haltères de 20kg ou élastiques pour l'exercice suivant : "${item.title}" (${item.desc}) ciblant : ${item.target}. Donne 2-3 consignes très courtes et précises d'exécution pour éviter les blessures.`;
+            }
+
+            const alternative = await callGeminiAPI(prompt, sysPrompt);
+            txt.innerHTML = formatMarkdown(alternative);
+            btn.disabled = false;
+        }
+
+        function setupModalAction(type, itemId, isChecked) {
+            const btn = document.getElementById('modal-action-btn');
+            btn.classList.remove('hidden');
+            
+            if (isChecked) {
+                btn.innerText = "Désélectionner l'objectif";
+                btn.className = "flex-1 py-3 text-slate-700 bg-slate-100 font-bold rounded-xl text-sm hover:bg-slate-200 transition-colors";
+            } else {
+                btn.innerText = "Valider l'objectif";
+                btn.className = "flex-1 py-3 text-white bg-indigo-600 font-bold rounded-xl text-sm hover:bg-indigo-700 shadow-md shadow-indigo-100 transition-colors";
+            }
+
+            btn.onclick = function() {
+                toggleItemStatus(type, itemId);
+                closeModal();
+            };
+
+            const modal = document.getElementById('detail-modal');
+            const subModal = modal.querySelector('div');
+            
+            modal.classList.remove('opacity-0', 'pointer-events-none');
+            subModal.classList.remove('translate-y-full', 'sm:translate-y-4');
+            subModal.classList.add('translate-y-0');
+        }
+
+        function closeModal() {
+            const modal = document.getElementById('detail-modal');
+            const subModal = modal.querySelector('div');
+            
+            subModal.classList.add('translate-y-full');
+            subModal.classList.remove('translate-y-0');
+            
+            setTimeout(() => {
+                modal.classList.add('opacity-0', 'pointer-events-none');
+            }, 150);
+        }
+
+        window.onclick = function(event) {
+            const modal = document.getElementById('detail-modal');
+            if (event.target === modal) {
+                closeModal();
+            }
+        }
+
+        function toggleAIChat() {
+            const chatWin = document.getElementById('ai-chat-window');
+            if (chatWin.classList.contains('opacity-0')) {
+                chatWin.classList.remove('opacity-0', 'pointer-events-none', 'translate-y-10');
+                chatWin.classList.add('opacity-100', 'translate-y-0');
+            } else {
+                chatWin.classList.add('opacity-0', 'pointer-events-none', 'translate-y-10');
+                chatWin.classList.remove('opacity-100', 'translate-y-0');
+            }
+        }
+
+        function setQuickPrompt(promptText) {
+            const input = document.getElementById('chat-input');
+            if (input) {
+                input.value = promptText;
+                sendChatMessage();
+            }
+        }
+
+        async function sendChatMessage() {
+            const input = document.getElementById('chat-input');
+            const text = input.value.trim();
+            if (!text) return;
+
+            input.value = "";
+            appendMessage(text, "user");
+
+            const loaderId = appendMessage("Analyse en cours par CoachRecomp IA... 🦾", "bot-loading");
+
+            const sysPrompt = "Tu es CoachRecomp, expert d'élite de 42 ans (1m82, 69kg, profil skinny-fat, cherchant à perdre des poignées d'amour et à se muscler avec haltères de 20kg et élastiques). Réponds de manière brève, précise, encourageante, et toujours axée sur les faits scientifiques réels.";
+            
+            const aiResponse = await callGeminiAPI(text, sysPrompt);
+
+            const loaderElem = document.getElementById(loaderId);
+            if (loaderElem) loaderElem.remove();
+            appendMessage(aiResponse, "bot");
+        }
+
+        function appendMessage(text, sender) {
+            const chatMessages = document.getElementById('chat-messages');
+            const msgDiv = document.createElement('div');
+            const uniqueId = "msg-" + Date.now();
+            msgDiv.id = uniqueId;
+
+            if (sender === "user") {
+                msgDiv.className = "bg-indigo-600 text-white p-3 rounded-2xl ml-auto max-w-[85%] rounded-tr-none text-right";
+                msgDiv.innerHTML = `<p class="font-semibold text-[10px] text-indigo-200 mb-0.5">Vous</p><p class="leading-relaxed text-left">${text}</p>`;
+            } else if (sender === "bot-loading") {
+                msgDiv.className = "bg-slate-200 text-slate-800 p-3 rounded-2xl max-w-[85%] rounded-tl-none animate-pulse";
+                msgDiv.innerHTML = `<p class="leading-relaxed">${text}</p>`;
+            } else {
+                msgDiv.className = "bg-white border border-slate-100 text-slate-800 p-3 rounded-2xl max-w-[85%] rounded-tl-none shadow-sm";
+                msgDiv.innerHTML = `<p class="font-bold text-[10px] text-indigo-600 mb-0.5">CoachRecomp</p><p class="leading-relaxed">${formatMarkdown(text)}</p>`;
+            }
+
+            chatMessages.appendChild(msgDiv);
+            chatMessages.scrollTop = chatMessages.scrollHeight;
+            return uniqueId;
+        }
+
+        async function generateDailyAIReview() {
+            const dateStr = formatDateToISO(currentSelectedDate);
+            const dayIndex = getProgramDayIndex(currentSelectedDate);
+            const dayData = programDatabase[dayIndex];
+            
+            let complétés = [];
+            let restants = [];
+
+            dayData.meals.forEach(item => {
+                if (progressDatabase[dateStr][item.id]) complétés.push(item.title);
+                else restants.push(item.title);
+            });
+
+            dayData.sport.forEach(item => {
+                if (progressDatabase[dateStr][item.id]) complétés.push(item.title);
+                else restants.push(item.title);
+            });
+
+            dayData.holistic.forEach(item => {
+                if (progressDatabase[dateStr][item.id]) complétés.push(item.title);
+                else restants.push(item.title);
+            });
+
+            let chosenDinner = null;
+            const dayDinners = getDinnerOptionsForDay(currentSelectedDate);
+            dayDinners.forEach(dinner => {
+                if (progressDatabase[dateStr][dinner.id]) {
+                    chosenDinner = dinner;
+                }
+            });
+
+            if (chosenDinner) {
+                complétés.push(`Dîner : ${chosenDinner.title}`);
+            } else {
+                restants.push("Dîner sain (1 option parmi les 3 proposées)");
+            }
+
+            const badge = document.getElementById('modal-category-badge');
+            badge.innerText = "BILAN DU JOUR ✨";
+            badge.className = "text-[10px] font-extrabold uppercase px-2.5 py-1 rounded-full bg-violet-100 text-violet-700";
+            
+            document.getElementById('modal-subtitle').innerText = "Analyse CoachRecomp IA";
+
+            const body = document.getElementById('modal-body-content');
+            body.innerHTML = `
+                <div class="flex items-center gap-4 bg-violet-50 p-4 rounded-2xl border border-violet-100">
+                    <span class="text-4xl">🔮</span>
+                    <div>
+                        <h5 class="text-lg font-black text-slate-950">Bilan de votre journée du ${dayData.dayName}</h5>
+                        <p class="text-xs text-slate-500">Génération par l'IA en cours...</p>
+                    </div>
+                </div>
+                <div class="p-6 text-center" id="ia-bilan-loading">
+                    <div class="inline-block w-8 h-8 border-4 border-indigo-600 border-t-transparent rounded-full animate-spin"></div>
+                    <p class="text-xs text-slate-400 mt-3 font-semibold">Analyse de vos métriques et objectifs du jour...</p>
+                </div>
+                <div id="ia-bilan-result" class="hidden text-slate-700 text-sm leading-relaxed space-y-3">
+                </div>
+            `;
+
+            setupModalAction('bilan', 'none', false);
+            document.getElementById('modal-action-btn').classList.add('hidden');
+            document.getElementById('modal-ia-alternative-btn').classList.add('hidden');
+
+            const queryPrompt = `
+                Analyse la progression de l'utilisateur pour la date "${formatFullFrenchDate(currentSelectedDate)}".
+                - Profil : 42 ans, 1m82, 69kg, skinny-fat.
+                - Objectifs complétés aujourd'hui : ${JSON.stringify(complétés)}.
+                - Objectifs non complétés aujourd'hui : ${JSON.stringify(restants)}.
+                Génère un retour ultra-court (maximum 150 mots), percutant, encourageant, expliquant physiologiquement l'impact de ce qu'il a fait aujourd'hui sur ses abdominaux/poignées d'amour ou sa musculation, et donne un unique conseil précis pour demain.
+            `;
+
+            const sysPrompt = "Tu es CoachRecomp, expert d'élite de 42 ans. Formule un bilan synthétique et motivant, sans fioritures superflues.";
+            
+            const review = await callGeminiAPI(queryPrompt, sysPrompt);
+
+            const loaderElem = document.getElementById('ia-bilan-loading');
+            if (loaderElem) loaderElem.classList.add('hidden');
+            const resultBox = document.getElementById('ia-bilan-result');
+            if (resultBox) {
+                resultBox.classList.remove('hidden');
+                resultBox.innerHTML = formatMarkdown(review);
+            }
+        }
+    </script>
+</body>
+</html>
